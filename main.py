@@ -14,9 +14,9 @@ logging.basicConfig(
 
 # Hostless ortam degiskenleri
 try:
-    API_ID = int(os.environ["30759251"])
-    API_HASH = os.environ["0e42bd51271da309534ee34c7c799eab"]
-    SESSION = os.environ["1BJWap1wBu5Qdnxj7GlNCLEKhbYqr-FSNV_6mLjOt-mt8aggQi61Np7lucK_2qDDneomeOryVzKnbN1M0qbzDFbxJxxHfmX949l45jXd4KJk4ZzGr3dYtPUidGoAKpHS6AL7yWkUISfFD8sEXig781TpGQ1v663DHPNQ52r6urt2-7cVQ2z334DF-AMC9fnkmS38Vxbi68ye9__Wn0zc2C6m-gALHVrRs2T-CKwvRlrEoVut9TSTZ-JWEdyIIdZT_TcyJOqr0G0MO0o9j4oVUPjk36OzIKtXMrKDt3O2-AWF9PVKVQAuguPJz7kN6SbIBckUfIpTGB8-eiwEXlr7Fai03WVq4KlM="]
+    API_ID = int(os.environ["TELEGRAM_API_ID"])
+    API_HASH = os.environ["TELEGRAM_API_HASH"]
+    SESSION = os.environ["TELEGRAM_SESSION"]
 except KeyError as error:
     raise RuntimeError(
         f"Hostless ortam degiskeni eksik: {error}"
