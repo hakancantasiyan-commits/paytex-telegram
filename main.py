@@ -33,7 +33,10 @@ SOURCE_CHANNELS = [
     "soleelife",
     "maqasdesign",
     "pelestia",
+"Renvatopta",
+"meermoda",
 ]
+
 
 client = TelegramClient(
     StringSession(SESSION),
