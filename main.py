@@ -1,17 +1,17 @@
+
 import os
 import logging
 import asyncio
 
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.utils import get_peer_id
 
-# Log ayarlari
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# Hostless ortam degiskenleri
 try:
     API_ID = int(os.environ["TELEGRAM_API_ID"])
     API_HASH = os.environ["TELEGRAM_API_HASH"]
@@ -21,9 +21,7 @@ except KeyError as error:
         f"Hostless ortam degiskeni eksik: {error}"
     ) from error
 
-# Kanal ayarlari
-TARGET_CHANNEL = "paytextasarim"  # @ işareti olmadan
-
+TARGET_CHANNEL = "paytextasarim"
 WHATSAPP_LINK = "https://wa.me/905527203981"
 
 SOURCE_CHANNELS = [
@@ -33,18 +31,19 @@ SOURCE_CHANNELS = [
     "soleelife",
     "maqasdesign",
     "pelestia",
-"Renvatopta",
-"meermoda",
-"merilinetoptan",
-    
+    "Renvatopta",
+    "meermoda",
+    "merilinetoptan",
 ]
-
 
 client = TelegramClient(
     StringSession(SESSION),
     API_ID,
     API_HASH,
 )
+
+# Ayni albümü tekrar işlememek için
+processed_groups = set()
 
 
 async def main():
@@ -56,12 +55,65 @@ async def main():
         for channel in SOURCE_CHANNELS
     ]
 
+    source_ids = {
+        get_peer_id(source) for source in sources
+    }
+
+    @client.on(events.Album(chats=sources))
+    async def forward_album(event):
+        messages = event.messages
+        if not messages:
+            return
+
+        group_id = messages[0].grouped_id
+        key = (event.chat_id, group_id)
+
+        if key in processed_groups:
+            return
+
+        processed_groups.add(key)
+
+        original_caption = next(
+            (m.message for m in messages if m.message),
+            "",
+        )
+
+        caption = (
+            f"{original_caption}\n\n"
+            f"📲 Sipariş ve bilgi için WhatsApp:\n"
+            f"{WHATSAPP_LINK}"
+        ).strip()
+
+        media = [
+            m.media for m in messages
+            if m.media and (m.photo or m.video)
+        ]
+
+        if not media:
+            return
+
+        try:
+            await client.send_file(
+                target,
+                media,
+                caption=[caption] + [""] * (len(media) - 1),
+            )
+            logging.info(
+                "Album aktarıldı: %s medya, kaynak %s",
+                len(media),
+                event.chat_id,
+            )
+        except Exception:
+            logging.exception("Album aktarılamadı")
+
     @client.on(events.NewMessage(chats=sources))
-    async def forward_photo(event):
+    async def forward_single(event):
         message = event.message
 
-        # Yalnizca fotografli gonderileri aktar
-        if not message.photo:
+        if message.grouped_id:
+            return
+
+        if not (message.photo or message.video):
             return
 
         original_caption = message.message or ""
@@ -74,20 +126,24 @@ async def main():
         try:
             await client.send_file(
                 target,
-                message.photo,
+                message.media,
                 caption=caption,
             )
             logging.info(
-                "Fotograf aktarildi. Kaynak: %s",
+                "Fotoğraf/video aktarıldı. Kaynak: %s",
                 event.chat_id,
             )
         except Exception:
-            logging.exception("Fotograf aktarilamadi")
+            logging.exception("Medya aktarılamadı")
 
-    logging.info("Paytex Tasarim aktarim sistemi calisiyor.")
+    logging.info(
+        "Paytex Tasarım sistemi çalışıyor: fotoğraf, video ve albümler."
+    )
+
     await client.run_until_disconnected()
 
 
 if __name__ == "__main__":
     with client:
         client.loop.run_until_complete(main())
+        
