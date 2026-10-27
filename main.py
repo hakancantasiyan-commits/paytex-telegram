@@ -22,7 +22,7 @@ except KeyError as error:
     ) from error
 
 # Kanal ayarlari
-TARGET_CHANNEL = "paytextasarim"  # @ olmadan
+TARGET_CHANNEL = "paytextasarim"  # @ işareti olmadan
 
 WHATSAPP_LINK = "https://wa.me/905527203981"
 
@@ -33,10 +33,12 @@ SOURCE_CHANNELS = [
     "soleelife",
     "maqasdesign",
     "pelestia",
-    "renvatopta",
-    "meermoda",
-    "merilinetoptan",
+"Renvatopta",
+"meermoda",
+"merilinetoptan",
+    
 ]
+
 
 client = TelegramClient(
     StringSession(SESSION),
@@ -44,35 +46,30 @@ client = TelegramClient(
     API_HASH,
 )
 
-# Her kaynak kanal icin fotograflari saymak icin
-# yapi: { chat_id: sayac_int }
-photo_counters = {}
-THRESHOLD = 5  # Her 5 fotograftan sonra 1 defa WhatsApp mesaji
-
 
 async def main():
     await client.start()
 
     target = await client.get_entity(TARGET_CHANNEL)
-    sources = [await client.get_entity(channel) for channel in SOURCE_CHANNELS]
+    sources = [
+        await client.get_entity(channel)
+        for channel in SOURCE_CHANNELS
+    ]
 
     @client.on(events.NewMessage(chats=sources))
     async def forward_photo(event):
         message = event.message
 
-        # Yalnizca fotografli gonderileri isliyoruz
+        # Yalnizca fotografli gonderileri aktar
         if not message.photo:
             return
 
-        chat_id = event.chat_id
-        source_name = (
-            getattr(event.chat, "username", None)
-            or getattr(event.chat, "title", "bilinmeyen")
-        )
-
-        # 1) Fotografı hemen Paytex kanalina aktar (whatsapp link YOK)
         original_caption = message.message or ""
-        caption = original_caption.strip() or None
+        caption = (
+            f"{original_caption}\n\n"
+            f"📲 Sipariş ve bilgi için WhatsApp:\n"
+            f"{WHATSAPP_LINK}"
+        ).strip()
 
         try:
             await client.send_file(
@@ -81,48 +78,13 @@ async def main():
                 caption=caption,
             )
             logging.info(
-                "Fotograf aktarildi. Kaynak kanal: %s (id=%s)",
-                source_name,
-                chat_id,
+                "Fotograf aktarildi. Kaynak: %s",
+                event.chat_id,
             )
         except Exception:
             logging.exception("Fotograf aktarilamadi")
-            return
 
-        # 2) Bu kanal icin fotograf sayacini arttir
-        current = photo_counters.get(chat_id, 0) + 1
-        photo_counters[chat_id] = current
-        logging.info(
-            "Sayac guncellendi. Kaynak kanal: %s (id=%s), count=%s",
-            source_name,
-            chat_id,
-            current,
-        )
-
-        # 3) Sayac esige ulasinca (5 foto) 1 defalik whatsapp mesaji gonder
-        if current >= THRESHOLD:
-            text = (
-                f"Son {THRESHOLD} urun paylasimi '{source_name}' kanalindan geldi.\n\n"
-                f"📲 Sipariş ve bilgi için WhatsApp:\n"
-                f"{WHATSAPP_LINK}"
-            )
-            try:
-                await client.send_message(target, text)
-                logging.info(
-                    "WhatsApp mesaji gonderildi. Kaynak kanal: %s (id=%s), count=%s",
-                    source_name,
-                    chat_id,
-                    current,
-                )
-            except Exception:
-                logging.exception("WhatsApp mesaji gonderilemedi")
-
-            # Sayaci sifirla
-            photo_counters[chat_id] = 0
-
-    logging.info(
-        "Paytex Tasarim aktarim sistemi calisiyor (her 5 fotografta 1 wp mesaji)."
-    )
+    logging.info("Paytex Tasarim aktarim sistemi calisiyor.")
     await client.run_until_disconnected()
 
 
