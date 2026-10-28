@@ -35,6 +35,7 @@ SOURCE_CHANNELS = [
     "meermoda",
     "merilinetoptan",
     "mionprive",
+    "soleelife",
 ]
 
 client = TelegramClient(
